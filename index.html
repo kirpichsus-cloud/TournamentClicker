@@ -8,11 +8,12 @@
         body {
             background-color: #121214;
             color: #ffffff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             text-align: center;
             margin: 0;
             padding: 20px;
             user-select: none;
+            -webkit-user-select: none;
         }
         h1 { color: #00ff66; font-size: 24px; margin-bottom: 5px; }
         .stats-container {
@@ -47,12 +48,7 @@
         }
         h3 { margin-top: 0; color: #0077ff; text-align: center; }
         
-        /* Стили для таблицы лидеров */
-        .leaderboard-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
+        .leaderboard-list { list-style: none; padding: 0; margin: 0; }
         .leaderboard-item {
             display: flex;
             justify-content: space-between;
@@ -66,7 +62,48 @@
             border: 1px solid #00ff66;
             background: #1a2e22;
         }
-        #log { color: #ffaa00; font-weight: bold; margin-top: 10px; min-height: 20px; }
+
+        /* КРАСИВОЕ МОДЛЬНОЕ ОКНО ДЛЯ IPHONE */
+        #login-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(18, 18, 20, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .login-box {
+            background: #1e1e24;
+            padding: 30px 20px;
+            border-radius: 16px;
+            width: 85%;
+            max-width: 320px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+        }
+        .login-box input {
+            width: 90%;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border: 1px solid #444;
+            background: #121214;
+            color: white;
+            font-size: 16px;
+            text-align: center;
+        }
+        .login-box button {
+            background: #00ff66;
+            color: #121214;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
     </style>
 
     <!-- Подключаем Firebase SDK -->
@@ -74,6 +111,16 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
+
+    <!-- Всплывающее окно ввода ника -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2 style="margin-top:0; color:#00ff66;">Вход в игру</h2>
+            <p style="color:#aaa; font-size:14px;">Придумай свой киберспортивный ник:</p>
+            <input type="text" id="nickname-input" placeholder="Например: S1mple" maxlength="14">
+            <button onclick="saveNickname()">ПОГНАТЬ!</button>
+        </div>
+    </div>
 
     <h1>🏆 ESPORTS CLICKER</h1>
     <p style="color: #888; margin-top: 0;">Привет, <span id="player-name" style="color:#00ff66;">Игрок</span>!</p>
@@ -83,9 +130,7 @@
     </div>
 
     <button id="click-btn" onclick="trainSkill()">ТРЕНИРОВАТЬСЯ</button>
-    <div id="log"></div>
 
-    <!-- LIVE ТАБЛИЦА ЛИДЕРОВ -->
     <div class="section">
         <h3>📊 Стрик Друзей (Live-Топ)</h3>
         <ul class="leaderboard-list" id="leaderboard">
@@ -94,77 +139,93 @@
     </div>
 
     <script>
-        // --- НАСТРОЙКА БАЗЫ ДАННЫХ (Публичная тестовая база) ---
-        // Используем готовую тестовую конфигурацию, чтобы всё работало сразу
+        // Конфиг базы
         const firebaseConfig = {
             databaseURL: "https://esports-clicker-default-rtdb.europe-west1.firebasedatabase.app/"
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // --- ЛОГИКА ИГРЫ ---
         let skill = 0;
         let username = localStorage.getItem('esports_username');
 
-        // Если зашли первый раз — спрашиваем ник
-        while (!username || username.trim() === "") {
-            username = prompt("Введите ваш киберспортивный никнейм:");
-            if (username) {
-                username = username.substring(0, 14).replace(/[.#$/\[\]]/g, ""); // защита от кривых символов
-                localStorage.setItem('esports_username', username);
-            }
+        // Проверяем, есть ли ник в памяти телефона
+        if (username) {
+            document.getElementById('login-overlay').style.display = 'none';
+            initGame();
         }
-        document.getElementById('player-name').innerText = username;
 
-        // Элементы UI
-        const skillText = document.getElementById('skill-text');
-        const leaderboardEl = document.getElementById('leaderboard');
-
-        // Загрузка начального прогресса из облака
-        database.ref('players/' + username).once('value').then((snapshot) => {
-            if (snapshot.exists()) {
-                skill = snapshot.val().skill || 0;
-                skillText.innerText = skill;
+        // Функция сохранения ника по кнопке
+        function saveNickname() {
+            let inputName = document.getElementById('nickname-input').value.trim();
+            if (inputName === "") {
+                alert("Ник не может быть пустым!");
+                return;
             }
-        });
+            // Убираем запрещенные для Firebase символы
+            username = inputName.replace(/[.#$/\[\]]/g, "");
+            localStorage.setItem('esports_username', username);
+            
+            // Скрываем окно ввода и запускаем игру
+            document.getElementById('login-overlay').style.display = 'none';
+            initGame();
+        }
+
+        // Запуск подгрузки данных
+        function initGame() {
+            document.getElementById('player-name').innerText = username;
+            const skillText = document.getElementById('skill-text');
+
+            // Подгружаем старый прогресс, если он был
+            database.ref('players/' + username).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    skill = snapshot.val().skill || 0;
+                    skillText.innerText = skill;
+                }
+            });
+
+            // Включаем Live-обновление топа
+            startLeaderboard();
+        }
 
         // Клик
         function trainSkill() {
+            if (!username) return;
             skill += 1;
-            skillText.innerText = skill;
+            document.getElementById('skill-text').innerText = skill;
             
-            // Отправляем новый результат в облако в реальном времени!
             database.ref('players/' + username).set({
                 skill: skill,
                 lastUpdate: Date.now()
             });
         }
 
-        // СЛУШАТЕЛЬ ОБЛАКА: Обновляет топ автоматически у ВСЕХ игроков при любом клике!
-        database.ref('players').orderByChild('skill').limitToLast(10).on('value', (snapshot) => {
-            let players = [];
-            snapshot.forEach((childSnapshot) => {
-                players.push({
-                    name: childSnapshot.key,
-                    skill: childSnapshot.val().skill
+        // Работа топа
+        function startLeaderboard() {
+            const leaderboardEl = document.getElementById('leaderboard');
+            database.ref('players').orderByChild('skill').limitToLast(10).on('value', (snapshot) => {
+                let players = [];
+                snapshot.forEach((childSnapshot) => {
+                    players.push({
+                        name: childSnapshot.key,
+                        skill: childSnapshot.val().skill
+                    });
+                });
+
+                players.reverse();
+                leaderboardEl.innerHTML = "";
+                
+                players.forEach((player, index) => {
+                    const isMe = player.name === username ? 'me' : '';
+                    leaderboardEl.innerHTML += `
+                        <li class="leaderboard-item ${isMe}">
+                            <span>${index + 1}. <b>${player.name}</b></span>
+                            <span style="color: #00ff66;">${player.skill} Скилла</span>
+                        </li>
+                    `;
                 });
             });
-
-            // Сортируем по убыванию
-            players.reverse();
-
-            // Рендерим список
-            leaderboardEl.innerHTML = "";
-            players.forEach((player, index) => {
-                const isMe = player.name === username ? 'me' : '';
-                leaderboardEl.innerHTML += `
-                    <li class="leaderboard-item ${isMe}">
-                        <span>${index + 1}. <b>${player.name}</b></span>
-                        <span style="color: #00ff66;">${player.skill} Скилла</span>
-                    </li>
-                `;
-            });
-        });
+        }
     </script>
 </body>
 </html>
