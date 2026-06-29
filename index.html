@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Esports Clicker: Squad Edition</title>
+    <title>Esports Clicker: Pro Edition</title>
     <style>
         body {
             background-color: #121214;
             color: #ffffff;
-            font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             text-align: center;
             margin: 0;
             padding: 20px;
@@ -20,7 +20,7 @@
             background: #1e1e24;
             padding: 15px;
             border-radius: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
         .stat { font-size: 18px; margin: 5px 0; }
@@ -28,8 +28,8 @@
             background: linear-gradient(135deg, #00ff66, #0077ff);
             border: none;
             color: white;
-            padding: 35px 20px;
-            width: 80%;
+            padding: 30px 20px;
+            width: 85%;
             max-width: 300px;
             font-size: 20px;
             font-weight: bold;
@@ -46,8 +46,26 @@
             margin-top: 15px;
             text-align: left;
         }
-        h3 { margin-top: 0; color: #0077ff; text-align: center; }
+        h3 { margin-top: 0; color: #0077ff; text-align: center; font-size: 16px; }
         
+        /* Кнопки улучшений и турниров */
+        button.upgrade-btn, button.tour-btn {
+            background: #2a2a35;
+            color: white;
+            border: 1px solid #444;
+            padding: 12px;
+            width: 100%;
+            margin: 6px 0;
+            border-radius: 8px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+        }
+        button:disabled { opacity: 0.4; }
+
+        /* Таблица лидеров */
         .leaderboard-list { list-style: none; padding: 0; margin: 0; }
         .leaderboard-item {
             display: flex;
@@ -56,14 +74,15 @@
             background: #25252e;
             margin-bottom: 5px;
             border-radius: 6px;
-            font-size: 15px;
+            font-size: 14px;
         }
         .leaderboard-item.me {
             border: 1px solid #00ff66;
             background: #1a2e22;
         }
+        #log { color: #ffaa00; font-weight: bold; margin-top: 5px; min-height: 20px; font-size: 14px; }
 
-        /* КРАСИВОЕ МОДЛЬНОЕ ОКНО ДЛЯ IPHONE */
+        /* Окно авторизации для iOS */
         #login-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -79,7 +98,6 @@
             border-radius: 16px;
             width: 85%;
             max-width: 320px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             border: 1px solid #333;
         }
         .login-box input {
@@ -101,7 +119,6 @@
             font-size: 16px;
             font-weight: bold;
             border-radius: 8px;
-            cursor: pointer;
             width: 100%;
         }
     </style>
@@ -112,7 +129,7 @@
 </head>
 <body>
 
-    <!-- Всплывающее окно ввода ника -->
+    <!-- Вход -->
     <div id="login-overlay">
         <div class="login-box">
             <h2 style="margin-top:0; color:#00ff66;">Вход в игру</h2>
@@ -123,109 +140,192 @@
     </div>
 
     <h1>🏆 ESPORTS CLICKER</h1>
-    <p style="color: #888; margin-top: 0;">Привет, <span id="player-name" style="color:#00ff66;">Игрок</span>!</p>
+    <p style="color: #888; margin-top: 0; font-size: 14px;">Игрок: <span id="player-name" style="color:#00ff66;">Загрузка...</span></p>
 
+    <!-- Статы -->
     <div class="stats-container">
-        <div class="stat">🧠 Твой Скилл: <span id="skill-text">0</span></div>
+        <div class="stat">🧠 Скилл: <span id="skill-text">0</span></div>
+        <div class="stat">💰 Баланс: $<span id="money-text">0</span></div>
+        <div class="stat" style="font-size: 12px; color: #aaa;">Доход: +<span id="cps-text">0</span> скилла/сек (Клик: +<span id="power-text">1</span>)</div>
     </div>
 
     <button id="click-btn" onclick="trainSkill()">ТРЕНИРОВАТЬСЯ</button>
+    <div id="log"></div>
 
+    <!-- Магазин -->
+    <div class="section">
+        <h3>🛒 Магазин девайсов</h3>
+        <button class="upgrade-btn" onclick="buyUpgrade('mouse', 15, 1, 0)">
+            <span>鼠标 Игровая мышка (+1 к клику)</span> <b id="cost-mouse">$15</b>
+        </button>
+        <button class="upgrade-btn" onclick="buyUpgrade('coach', 100, 0, 1)">
+            <span>👨‍пли Тренер (+1 в сек)</span> <b id="cost-coach">$100</b>
+        </button>
+    </div>
+
+    <!-- Турниры -->
+    <div class="section">
+        <h3>🎮 Киберспортивные Турниры</h3>
+        <button class="tour-btn" onclick="playTournament('LAN во дворе', 50, 40)">
+            <span>🏠 LAN во дворе (Нужно: 50 скилла)</span> <b style="color: #00ff66;">+$40</b>
+        </button>
+        <button class="tour-btn" onclick="playTournament('Региональная Лига', 300, 250)">
+            <span>🇷🇺 Нац. Лига (Нужно: 300 скилла)</span> <b style="color: #00ff66;">+$250</b>
+        </button>
+        <button class="tour-btn" onclick="playTournament('Cyber Major', 1500, 1200)">
+            <span>🌍 Cyber Major (Нужно: 1500 скилла)</span> <b style="color: #00ff66;">+$1200</b>
+        </button>
+    </div>
+
+    <!-- Топ -->
     <div class="section">
         <h3>📊 Стрик Друзей (Live-Топ)</h3>
         <ul class="leaderboard-list" id="leaderboard">
-            <li style="color: #aaa; text-align: center;">Загрузка топа...</li>
+            <li style="color: #aaa; text-align: center;">Синхронизация...</li>
         </ul>
     </div>
 
     <script>
-        // Конфиг базы
         const firebaseConfig = {
             databaseURL: "https://esports-clicker-default-rtdb.europe-west1.firebasedatabase.app/"
         };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
+        // Переменные
         let skill = 0;
+        let money = 0;
+        let clickPower = 1;
+        let skillPerSecond = 0;
+        let upgradeCosts = { mouse: 15, coach: 100 };
         let username = localStorage.getItem('esports_username');
 
-        // Проверяем, есть ли ник в памяти телефона
         if (username) {
             document.getElementById('login-overlay').style.display = 'none';
             initGame();
         }
 
-        // Функция сохранения ника по кнопке
         function saveNickname() {
             let inputName = document.getElementById('nickname-input').value.trim();
-            if (inputName === "") {
-                alert("Ник не может быть пустым!");
-                return;
-            }
-            // Убираем запрещенные для Firebase символы
+            if (inputName === "") return;
             username = inputName.replace(/[.#$/\[\]]/g, "");
             localStorage.setItem('esports_username', username);
-            
-            // Скрываем окно ввода и запускаем игру
             document.getElementById('login-overlay').style.display = 'none';
             initGame();
         }
 
-        // Запуск подгрузки данных
         function initGame() {
             document.getElementById('player-name').innerText = username;
-            const skillText = document.getElementById('skill-text');
+            
+            // Локальный подгруз, чтобы не сбрасывать девайсы при перезаходе
+            if(localStorage.getItem('local_skill')) {
+                skill = parseInt(localStorage.getItem('local_skill')) || 0;
+                money = parseInt(localStorage.getItem('local_money')) || 0;
+                clickPower = parseInt(localStorage.getItem('local_power')) || 1;
+                skillPerSecond = parseInt(localStorage.getItem('local_cps')) || 0;
+                upgradeCosts.mouse = parseInt(localStorage.getItem('cost_mouse')) || 15;
+                upgradeCosts.coach = parseInt(localStorage.getItem('cost_coach')) || 100;
+                document.getElementById('cost-mouse').innerText = `$${upgradeCosts.mouse}`;
+                document.getElementById('cost-coach').innerText = `$${upgradeCosts.coach}`;
+            }
 
-            // Подгружаем старый прогресс, если он был
-            database.ref('players/' + username).once('value').then((snapshot) => {
-                if (snapshot.exists()) {
-                    skill = snapshot.val().skill || 0;
-                    skillText.innerText = skill;
-                }
-            });
-
-            // Включаем Live-обновление топа
+            updateUI();
             startLeaderboard();
         }
 
-        // Клик
         function trainSkill() {
             if (!username) return;
-            skill += 1;
-            document.getElementById('skill-text').innerText = skill;
-            
+            skill += clickPower;
+            updateUI();
+            saveAndSync();
+        }
+
+        function buyUpgrade(type, baseCost, addClick, addCps) {
+            let cost = upgradeCosts[type];
+            if (money >= cost) {
+                money -= cost;
+                clickPower += addClick;
+                skillPerSecond += addCps;
+                upgradeCosts[type] = Math.floor(cost * 1.5);
+                document.getElementById(`cost-${type}`).innerText = `$${upgradeCosts[type]}`;
+                showLog("Буст куплен! Скилл растет быстрее.");
+                updateUI();
+                saveAndSync();
+            } else {
+                showLog("Не хватает бабок!");
+            }
+        }
+
+        function playTournament(name, requiredSkill, prize) {
+            if (skill >= requiredSkill) {
+                skill -= requiredSkill;
+                money += prize;
+                showLog(`🏆 Победа на "${name}"! Получено $${prize}`);
+                updateUI();
+                saveAndSync();
+            } else {
+                showLog("Твой скилл слишком слаб для этого турнира!");
+            }
+        }
+
+        function saveAndSync() {
+            // Сохраняем локально все переменные менеджмента
+            localStorage.setItem('local_skill', skill);
+            localStorage.setItem('local_money', money);
+            localStorage.setItem('local_power', clickPower);
+            localStorage.setItem('local_cps', skillPerSecond);
+            localStorage.setItem('cost_mouse', upgradeCosts.mouse);
+            localStorage.setItem('cost_coach', upgradeCosts.coach);
+
+            // Отправляем в общую таблицу только Скилл для соревнования
             database.ref('players/' + username).set({
                 skill: skill,
                 lastUpdate: Date.now()
             });
         }
 
-        // Работа топа
+        function updateUI() {
+            document.getElementById('skill-text').innerText = skill;
+            document.getElementById('money-text').innerText = money;
+            document.getElementById('cps-text').innerText = skillPerSecond;
+            document.getElementById('power-text').innerText = clickPower;
+        }
+
+        function showLog(msg) {
+            const logText = document.getElementById('log');
+            logText.innerText = msg;
+            setTimeout(() => { if(logText.innerText === msg) logText.innerText = ""; }, 2500);
+        }
+
         function startLeaderboard() {
             const leaderboardEl = document.getElementById('leaderboard');
             database.ref('players').orderByChild('skill').limitToLast(10).on('value', (snapshot) => {
                 let players = [];
                 snapshot.forEach((childSnapshot) => {
-                    players.push({
-                        name: childSnapshot.key,
-                        skill: childSnapshot.val().skill
-                    });
+                    players.push({ name: childSnapshot.key, skill: childSnapshot.val().skill });
                 });
-
                 players.reverse();
                 leaderboardEl.innerHTML = "";
-                
                 players.forEach((player, index) => {
                     const isMe = player.name === username ? 'me' : '';
                     leaderboardEl.innerHTML += `
                         <li class="leaderboard-item ${isMe}">
                             <span>${index + 1}. <b>${player.name}</b></span>
                             <span style="color: #00ff66;">${player.skill} Скилла</span>
-                        </li>
-                    `;
+                        </li>`;
                 });
             });
         }
+
+        // Пассивный доход в секунду
+        setInterval(() => {
+            if (skillPerSecond > 0 && username) {
+                skill += skillPerSecond;
+                updateUI();
+                // Чтобы не спамить базу каждую секунду, сохраняем локально, а в облако закинем при следующем клике или турнире
+                localStorage.setItem('local_skill', skill);
+            }
+        }, 1000);
     </script>
 </body>
 </html>
