@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esports Clicker: Squad Edition</title>
+    <style>
+        body {
+            background-color: #121214;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            user-select: none;
+        }
+        h1 { color: #00ff66; font-size: 24px; margin-bottom: 5px; }
+        .stats-container {
+            background: #1e1e24;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .stat { font-size: 18px; margin: 5px 0; }
+        #click-btn {
+            background: linear-gradient(135deg, #00ff66, #0077ff);
+            border: none;
+            color: white;
+            padding: 35px 20px;
+            width: 80%;
+            max-width: 300px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 50%;
+            margin: 15px auto;
+            box-shadow: 0 6px 20px rgba(0, 255, 102, 0.4);
+            transition: transform 0.1s;
+        }
+        #click-btn:active { transform: scale(0.95); }
+        .section {
+            background: #1e1e24;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 15px;
+            text-align: left;
+        }
+        h3 { margin-top: 0; color: #0077ff; text-align: center; }
+        
+        /* Стили для таблицы лидеров */
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            background: #25252e;
+            margin-bottom: 5px;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+        .leaderboard-item.me {
+            border: 1px solid #00ff66;
+            background: #1a2e22;
+        }
+        #log { color: #ffaa00; font-weight: bold; margin-top: 10px; min-height: 20px; }
+    </style>
+
+    <!-- Подключаем Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+</head>
+<body>
+
+    <h1>🏆 ESPORTS CLICKER</h1>
+    <p style="color: #888; margin-top: 0;">Привет, <span id="player-name" style="color:#00ff66;">Игрок</span>!</p>
+
+    <div class="stats-container">
+        <div class="stat">🧠 Твой Скилл: <span id="skill-text">0</span></div>
+    </div>
+
+    <button id="click-btn" onclick="trainSkill()">ТРЕНИРОВАТЬСЯ</button>
+    <div id="log"></div>
+
+    <!-- LIVE ТАБЛИЦА ЛИДЕРОВ -->
+    <div class="section">
+        <h3>📊 Стрик Друзей (Live-Топ)</h3>
+        <ul class="leaderboard-list" id="leaderboard">
+            <li style="color: #aaa; text-align: center;">Загрузка топа...</li>
+        </ul>
+    </div>
+
+    <script>
+        // --- НАСТРОЙКА БАЗЫ ДАННЫХ (Публичная тестовая база) ---
+        // Используем готовую тестовую конфигурацию, чтобы всё работало сразу
+        const firebaseConfig = {
+            databaseURL: "https://esports-clicker-default-rtdb.europe-west1.firebasedatabase.app/"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // --- ЛОГИКА ИГРЫ ---
+        let skill = 0;
+        let username = localStorage.getItem('esports_username');
+
+        // Если зашли первый раз — спрашиваем ник
+        while (!username || username.trim() === "") {
+            username = prompt("Введите ваш киберспортивный никнейм:");
+            if (username) {
+                username = username.substring(0, 14).replace(/[.#$/\[\]]/g, ""); // защита от кривых символов
+                localStorage.setItem('esports_username', username);
+            }
+        }
+        document.getElementById('player-name').innerText = username;
+
+        // Элементы UI
+        const skillText = document.getElementById('skill-text');
+        const leaderboardEl = document.getElementById('leaderboard');
+
+        // Загрузка начального прогресса из облака
+        database.ref('players/' + username).once('value').then((snapshot) => {
+            if (snapshot.exists()) {
+                skill = snapshot.val().skill || 0;
+                skillText.innerText = skill;
+            }
+        });
+
+        // Клик
+        function trainSkill() {
+            skill += 1;
+            skillText.innerText = skill;
+            
+            // Отправляем новый результат в облако в реальном времени!
+            database.ref('players/' + username).set({
+                skill: skill,
+                lastUpdate: Date.now()
+            });
+        }
+
+        // СЛУШАТЕЛЬ ОБЛАКА: Обновляет топ автоматически у ВСЕХ игроков при любом клике!
+        database.ref('players').orderByChild('skill').limitToLast(10).on('value', (snapshot) => {
+            let players = [];
+            snapshot.forEach((childSnapshot) => {
+                players.push({
+                    name: childSnapshot.key,
+                    skill: childSnapshot.val().skill
+                });
+            });
+
+            // Сортируем по убыванию
+            players.reverse();
+
+            // Рендерим список
+            leaderboardEl.innerHTML = "";
+            players.forEach((player, index) => {
+                const isMe = player.name === username ? 'me' : '';
+                leaderboardEl.innerHTML += `
+                    <li class="leaderboard-item ${isMe}">
+                        <span>${index + 1}. <b>${player.name}</b></span>
+                        <span style="color: #00ff66;">${player.skill} Скилла</span>
+                    </li>
+                `;
+            });
+        });
+    </script>
+</body>
+</html>
